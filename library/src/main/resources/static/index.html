@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My Library</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <header class="site-header"><div class="shell header-content">
+        <a class="brand" href="/">My Library<span>Books, people, and the stories between.</span></a>
+        <span class="header-note">Library desk</span>
+    </div></header>
+    <main class="shell">
+        <nav aria-label="Library sections">
+            <button type="button" data-section="books" aria-current="page">Books</button>
+            <button type="button" data-section="students">Students</button>
+            <button type="button" data-section="borrowings">Borrowings</button>
+            <button type="button" data-section="waitlists">Waitlists</button>
+        </nav>
+        <div class="page-heading"><div><p class="eyebrow">YOUR LIBRARY, ORGANIZED</p>
+            <h1 id="page-title">Books</h1><p id="description">Find a title or make room for a new story.</p>
+        </div><button type="button" id="add-button">+ Add book</button></div>
+        <p id="notice" role="status" aria-live="polite" hidden></p>
+        <section class="panel" aria-labelledby="list-heading">
+            <div class="toolbar"><h2 id="list-heading">Book collection</h2>
+                <form id="search-form" role="search">
+                    <label class="visually-hidden" for="search">Search books by exact title</label>
+                    <input id="search" type="search" placeholder="Search exact title…">
+                    <button type="submit" class="secondary">Search</button>
+                </form>
+                <button type="button" id="refresh" class="secondary">Refresh</button>
+                <button type="button" id="undo-book-edit" class="secondary" aria-describedby="undo-help">Undo last book edit</button>
+            </div>
+            <p id="undo-help" class="help undo-help">Undo restores the latest title and author edit in this library. Other changes cannot be undone. History clears when the app restarts.</p>
+            <p id="list-status" role="status" aria-live="polite">Loading books…</p>
+            <div id="waitlist-panel" hidden>
+                <label class="field" for="waitlist-book">Book</label>
+                <select id="waitlist-book"><option value="">Choose a book…</option></select>
+                <p class="help">Students can join only when a book has zero available copies. Each book has its own queue.</p>
+                <div class="waitlist-next">
+                    <p class="eyebrow">NEXT IN LINE</p>
+                    <p id="next-student" role="status" aria-live="polite">Choose a book to see who is waiting.</p>
+                    <button type="button" id="remove-next" class="secondary danger" disabled>Remove next student</button>
+                </div>
+                <p class="help">Removing someone only changes the queue. Borrowing and returning books are separate actions. Waitlists clear when the app restarts.</p>
+            </div>
+            <div class="table-scroll"><table id="data-table" hidden>
+                <caption class="visually-hidden" id="table-caption">Books</caption>
+                <thead id="table-head"></thead><tbody id="table-body"></tbody>
+            </table></div>
+        </section>
+        <p class="footnote">A small space to keep your library moving.</p>
+    </main>
+    <dialog id="editor" aria-labelledby="dialog-title">
+        <form id="editor-form">
+            <div class="dialog-heading"><h2 id="dialog-title"></h2><button type="button" id="close-dialog" class="secondary" aria-label="Close form">✕</button></div>
+            <div id="fields"></div>
+            <p id="form-error" role="alert" hidden></p>
+            <div class="dialog-actions"><button type="button" id="cancel-dialog" class="secondary">Cancel</button><button type="submit" id="save-button">Save</button></div>
+        </form>
+    </dialog>
+</body>
+</html>
