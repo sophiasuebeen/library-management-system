@@ -31,3 +31,26 @@ build/
 
 ### VS Code ###
 .vscode/
+
+
+# macOS files
+.DS_Store
+._*
+.Spotlight-v100/
+.Trashes/
+
+# Local editor files
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+
+
