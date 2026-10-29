@@ -13,7 +13,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -25,41 +27,23 @@ import com.example.library.repository.StudentRepository;
 import com.example.library.service.BookService;
 import com.example.library.service.BorrowingService;
 
-@SpringJUnitConfig(BorrowingServiceTests.Config.class)
+@SpringBootTest
+@ActiveProfiles("test")
+@Sql("/reset-schema.sql")
 class ControllerTests {
     @Autowired JdbcTemplate jdbc;
     @Autowired BookRepository books;
+    @Autowired StudentRepository students;
     @Autowired BorrowingService borrowingService;
     private MockMvc client;
 
     @BeforeEach
     void setUp() {
-        jdbc.execute("DROP TABLE IF EXISTS borrowings");
-        jdbc.execute("DROP TABLE IF EXISTS books");
-        jdbc.execute("DROP TABLE IF EXISTS students");
-        jdbc.execute("""
-            CREATE TABLE books (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(255) NOT NULL,
-                author VARCHAR(255) NOT NULL,
-                available_copies INT NOT NULL
-            )
-            """);
-        jdbc.execute("CREATE TABLE students (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL)");
-        jdbc.execute("""
-            CREATE TABLE borrowings (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                student_id INT NOT NULL REFERENCES students(id),
-                book_id INT NOT NULL REFERENCES books(id),
-                borrowed_date DATE NOT NULL,
-                returned_date DATE
-            )
-            """);
         jdbc.update("INSERT INTO books (id, title, author, available_copies) VALUES (12, 'Atomic Habits', 'James Clear', 2)");
         jdbc.update("INSERT INTO students (id, name) VALUES (7, 'Sophia')");
         client = MockMvcBuilders.standaloneSetup(
                 new BookController(books, new BookService(books)),
-                new StudentController(new StudentRepository(jdbc)),
+                new StudentController(students),
                 new BorrowingController(borrowingService)).build();
     }
 

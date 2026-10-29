@@ -12,50 +12,32 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import javax.sql.DataSource;
 
-import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import com.example.library.controller.BorrowingController;
-import com.example.library.repository.BookRepository;
-import com.example.library.repository.BorrowingRepository;
 import com.example.library.service.BorrowingService;
 
-@SpringJUnitConfig(BorrowingServiceTests.Config.class)
+@SpringBootTest
+@ActiveProfiles("test")
+@Sql("/reset-schema.sql")
 class BorrowingServiceTests {
     @Autowired BorrowingService service;
     @Autowired JdbcTemplate jdbc;
 
     @BeforeEach
     void resetDatabase() {
-        jdbc.execute("DROP TABLE IF EXISTS borrowings");
-        jdbc.execute("DROP TABLE IF EXISTS books");
-        jdbc.execute("DROP TABLE IF EXISTS students");
-        jdbc.execute("CREATE TABLE students (id INT PRIMARY KEY)");
-        jdbc.execute("CREATE TABLE books (id INT PRIMARY KEY, available_copies INT NOT NULL)");
-        jdbc.execute("""
-            CREATE TABLE borrowings (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                student_id INT NOT NULL REFERENCES students(id),
-                book_id INT NOT NULL REFERENCES books(id),
-                borrowed_date DATE NOT NULL,
-                returned_date DATE
-            )
-            """);
-        jdbc.update("INSERT INTO students (id) VALUES (7), (8)");
-        jdbc.update("INSERT INTO books (id, available_copies) VALUES (12, 1)");
+        jdbc.update("INSERT INTO students (id, name) VALUES (7, 'Sophia'), (8, 'Alex')");
+        jdbc.update("INSERT INTO books (id, title, author, available_copies) VALUES (12, 'Book A', 'Author', 1)");
     }
 
     @Test
@@ -265,33 +247,4 @@ class BorrowingServiceTests {
         return jdbc.queryForObject("SELECT COUNT(*) FROM borrowings", Integer.class);
     }
 
-    @TestConfiguration(proxyBeanMethods = false)
-    @EnableTransactionManagement
-    static class Config {
-        @Bean DataSource dataSource() {
-            var source = new JdbcDataSource();
-            source.setURL("jdbc:h2:mem:borrowing-service;MODE=MySQL;DB_CLOSE_DELAY=-1");
-            return source;
-        }
-
-        @Bean JdbcTemplate jdbcTemplate(DataSource source) {
-            return new JdbcTemplate(source);
-        }
-
-        @Bean JdbcTransactionManager transactionManager(DataSource source) {
-            return new JdbcTransactionManager(source);
-        }
-
-        @Bean BookRepository bookRepository(JdbcTemplate jdbc) {
-            return new BookRepository(jdbc);
-        }
-
-        @Bean BorrowingRepository borrowingRepository(JdbcTemplate jdbc) {
-            return new BorrowingRepository(jdbc);
-        }
-
-        @Bean BorrowingService borrowingService(BookRepository books, BorrowingRepository borrowings) {
-            return new BorrowingService(books, borrowings);
-        }
-    }
 }

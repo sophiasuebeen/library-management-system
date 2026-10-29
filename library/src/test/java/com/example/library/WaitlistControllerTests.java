@@ -12,7 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -21,27 +23,21 @@ import com.example.library.repository.BookRepository;
 import com.example.library.repository.StudentRepository;
 import com.example.library.service.BookWaitlist;
 
-@SpringJUnitConfig(BorrowingServiceTests.Config.class)
+@SpringBootTest
+@ActiveProfiles("test")
+@Sql("/reset-schema.sql")
 class WaitlistControllerTests {
     @Autowired JdbcTemplate jdbc;
+    @Autowired BookRepository books;
+    @Autowired StudentRepository students;
     private MockMvc client;
 
     @BeforeEach
     void setUp() {
-        jdbc.execute("DROP TABLE IF EXISTS borrowings");
-        jdbc.execute("DROP TABLE IF EXISTS books");
-        jdbc.execute("DROP TABLE IF EXISTS students");
-        jdbc.execute("""
-                CREATE TABLE books (
-                    id INT PRIMARY KEY, title VARCHAR(255) NOT NULL,
-                    author VARCHAR(255) NOT NULL, available_copies INT NOT NULL
-                )
-                """);
-        jdbc.execute("CREATE TABLE students (id INT PRIMARY KEY, name VARCHAR(255) NOT NULL)");
         jdbc.update("INSERT INTO books VALUES (12, 'Book A', 'Author', 0), (27, 'Book B', 'Author', 0), (30, 'Available', 'Author', 2)");
         jdbc.update("INSERT INTO students VALUES (7, 'Sophia'), (8, 'Alex')");
         client = MockMvcBuilders.standaloneSetup(new WaitlistController(
-                new BookWaitlist(), new BookRepository(jdbc), new StudentRepository(jdbc))).build();
+                new BookWaitlist(), books, students)).build();
     }
 
     private void join(int bookId, int studentId) throws Exception {

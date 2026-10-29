@@ -1,44 +1,32 @@
 package com.example.library.repository;
 
 import java.util.List;
-import java.util.Optional;
-
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 import com.example.library.model.Student;
 
-@Repository
-public class StudentRepository {
-    private final JdbcTemplate jdbc;
-    
-    public StudentRepository(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+@Transactional(readOnly = true)
+public interface StudentRepository extends JpaRepository<Student, Integer> {
+    @Override
+    @Query("select s from Student s order by s.id")
+    List<Student> findAll();
+
+    @Transactional
+    default int registerStudent(String name) {
+        saveAndFlush(new Student(name));
+        return 1;
     }
 
-    public int registerStudent(String name) {
-        String sql = "INSERT INTO students (name) VALUES (?)";
-        return jdbc.update(sql, name);
-    }
+    @Transactional
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update Student s set s.name = :name where s.id = :id")
+    int updateName(@Param("id") int id, @Param("name") String name);
 
-    public List<Student> findAll() {
-        String sql = "SELECT id, name FROM students ORDER BY id";
-        return jdbc.query(sql, (row, rowNumber) -> new Student(
-                row.getInt("id"),
-                row.getString("name")));
-    }
-
-    public Optional<Student> findById(int id) {
-        String sql = "SELECT id, name FROM students WHERE id = ?";
-        return jdbc.query(sql, (row, rowNumber) -> new Student(
-                row.getInt("id"), row.getString("name")), id).stream().findFirst();
-    }
-
-    public int updateName(int id, String name) {
-        return jdbc.update("UPDATE students SET name = ? WHERE id = ?", name, id);
-    }
-
-    public int deleteStudent(int id) {
-        return jdbc.update("DELETE FROM students WHERE id = ?", id);
-    }
+    @Transactional
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from Student s where s.id = :id")
+    int deleteStudent(@Param("id") int id);
 }

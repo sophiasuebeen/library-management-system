@@ -1,6 +1,8 @@
 package com.example.library.service;
 
 import java.util.List;
+import com.example.library.model.Borrowing;
+import com.example.library.repository.StudentRepository;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,9 +16,12 @@ public class BorrowingService {
     private final BookRepository books;
     private final BorrowingRepository borrowings;
 
-    public BorrowingService(BookRepository books, BorrowingRepository borrowings) {
+    private final StudentRepository students;
+
+    public BorrowingService(BookRepository books, BorrowingRepository borrowings, StudentRepository students) {
         this.books = books;
         this.borrowings = borrowings;
+        this.students = students;
     }
 
     @Transactional(readOnly = true)
@@ -34,12 +39,12 @@ public class BorrowingService {
             throw new IllegalStateException("Book does not exist or has no available copies.");
         }
 
-        int rowsInserted = borrowings.insertBorrowing(studentId, bookId); //insert
-        if (rowsInserted != 1) {
-            throw new IllegalStateException("Could not create the borrowing record.");
-        }
-
-        return rowsInserted;
+        // References supply foreign keys without loading the full entities.
+        // Flush here so a foreign-key failure rolls back the stock decrease.
+        borrowings.saveAndFlush(new Borrowing(
+                students.getReferenceById(studentId),
+                books.getReferenceById(bookId)));
+        return 1;
     } 
     // With MySQL’s InnoDB engine, conflicting updates use exclusive locks. 
     // Two transactions cannot update that book’s row simultaneously
