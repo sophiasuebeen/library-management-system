@@ -53,5 +53,5 @@ build/
 !.env.example
 
 /docs/
-
+/README.md
 
