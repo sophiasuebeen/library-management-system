@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: orbit-library
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Enable checksPass after a GitHub Actions workflow has been added.
+    autoDeployTrigger: 'off'
+    healthCheckPath: /books
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: cloud
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
