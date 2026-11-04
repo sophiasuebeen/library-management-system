@@ -1,0 +1,52 @@
+name: Library checks
+
+on:
+  push:
+    branches: [main, codex/orbit-ui-render]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: library-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    name: Docker build and Java tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      # The image build runs frontend checks and Java tests against H2.
+      # Production database credentials are never passed to CI.
+      - run: docker build --tag orbit-library:ci .
+
+  browser:
+    name: Browser flows and mobile layout
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium --no-shell
+      - name: Verify library interactions in isolated demo mode
+        run: |
+          npm run dev -- --host 127.0.0.1 > /tmp/orbit-vite.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          curl --fail --silent --output /dev/null --retry 20 --retry-delay 1 --retry-connrefused http://127.0.0.1:5173/
+          npm run test:browser
