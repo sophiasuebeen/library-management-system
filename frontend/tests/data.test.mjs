@@ -1,0 +1,37 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+test('demo borrowing and return restore inventory; waitlists preserve existing entries', async () => {
+  globalThis.window = { location: { search: '?demo' } };
+  const { request } = await import('../src/data.js?demo-test');
+  const before = await request('/books');
+  await request('/borrowings', 'POST', { bookId: 1, studentId: 1 });
+  assert.equal((await request('/books'))[0].availableCopies, before[0].availableCopies - 1);
+  const loan = (await request('/borrowings')).find(b => b.bookTitle === 'The Creative Act');
+  assert.ok(loan.borrowingId);
+  await request(`/borrowings/${loan.borrowingId}/return`, 'PATCH');
+  await request(`/borrowings/${loan.borrowingId}/return`, 'PATCH');
+  assert.equal((await request('/books'))[0].availableCopies, before[0].availableCopies);
+  await assert.rejects(request('/books/1/waitlist', 'POST', { studentId: 1 }), /no copies/);
+  await request('/books/4/waitlist', 'POST', { studentId: 1 });
+  await request('/books/4/waitlist', 'POST', { studentId: 2 });
+  assert.equal((await request('/books/4/waitlist/next')).studentId, 1);
+  await request('/books/4/waitlist/next/remove', 'POST');
+  assert.equal((await request('/books/4/waitlist/next')).studentId, 2);
+});
+test('live adapter sends compatible payloads, accepts empty success, and never retries a failed mutation', async () => {
+  globalThis.window = { location: { search: '' } };
+  const { request } = await import('../src/data.js?live-test');
+  let seen;
+  globalThis.fetch = async (path, options) => { seen = { path, ...options }; return new Response(null, { status: 201 }); };
+  assert.equal(await request('/borrowings', 'POST', { bookId: 4, studentId: 7 }), null);
+  assert.equal(seen.path, '/borrowings'); assert.equal(seen.method, 'POST');
+  assert.deepEqual(JSON.parse(seen.body), { bookId: 4, studentId: 7 });
+  globalThis.fetch = async () => new Response(null, { status: 204 });
+  assert.equal(await request('/books/4/waitlist/next'), null);
+  globalThis.fetch = async () => new Response(JSON.stringify({ detail: 'No available copies.' }), { status: 409 });
+  await assert.rejects(request('/borrowings', 'POST', {}), /No available copies/);
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error('Disconnected'); };
+  await assert.rejects(request('/books/4/waitlist/next/remove', 'POST'), /may have completed/);
+  assert.equal(calls, 1);
+});

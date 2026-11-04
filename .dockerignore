@@ -1,0 +1,27 @@
+# Only application build inputs are sent to the image builder.
+**
+!frontend/
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/index.html
+!frontend/vite.config.mjs
+!frontend/src/
+!frontend/src/**
+!frontend/public/
+!frontend/public/**
+!frontend/scripts/
+!frontend/scripts/prepare-sites-build.mjs
+!frontend/tests/
+!frontend/tests/*.mjs
+!frontend/worker/
+!frontend/worker/index.js
+!frontend/.openai/
+!frontend/.openai/hosting.json
+!library/
+!library/mvnw
+!library/.mvn/
+!library/.mvn/**
+!library/pom.xml
+!library/src/
+!library/src/**
+library/src/main/resources/static/

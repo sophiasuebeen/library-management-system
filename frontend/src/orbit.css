@@ -1,0 +1,35 @@
+/* The covers are textures on true 3D book volumes; the canvas stays a compact part of the page. */
+.orbit {
+  position: relative;
+  width: min(100%, 1060px);
+  height: 340px;
+  margin: 18px auto 42px;
+  touch-action: pan-y;
+}
+.orbit-stage { position: absolute; inset: 0 26px 20px; }
+.orbit-stage canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+.orbit-arrow { position: absolute; top: 46%; transform: translateY(-50%); z-index: 1; }
+.orbit-arrow.previous { left: 0; }
+.orbit-arrow.next { right: 0; }
+.orbit-caption {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; justify-content: center; gap: 32px;
+  color: #777; font: 9px var(--mono); letter-spacing: .06em; white-space: nowrap;
+}
+.orbit-scroll-hint { display: inline-flex; align-items: center; gap: 8px; }
+.orbit-keyboard-hint { display: none; }
+.orbit-fallback { position: absolute; inset: 20px 50px 40px; display: flex; justify-content: center; align-items: center; pointer-events: none; }
+.orbit-fallback img { height: 200px; width: auto; object-fit: contain; }
+@media (max-width: 1100px) { .orbit { height: 320px; margin-bottom: 32px; } }
+@media (max-width: 650px) {
+  .orbit { width: 100%; height: 240px; margin: 12px auto 26px; }
+  .orbit-stage { inset: 0 0 20px; }
+  .orbit-caption { gap: 16px; font-size: 7px; letter-spacing: 0; }
+  .orbit-arrow.previous { left: -12px; }
+  .orbit-arrow.next { right: -12px; }
+  .orbit-fallback img { height: 140px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orbit-scroll-hint { display: none; }
+  .orbit-keyboard-hint { display: inline; }
+}
