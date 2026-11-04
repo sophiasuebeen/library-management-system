@@ -1,24 +1,10 @@
 # Orbit Library · Library Management System
 
-**A world within reach.**
+A full-stack library management application built with Java, Spring Boot, and React. Orbit Library provides a REST API and an interactive book collection for cataloguing books, registering students, borrowing, and returning.
 
-A full-stack library management application built with Java, Spring Boot, and React. Orbit Library turns everyday library tasks—cataloguing books, registering students, borrowing, and returning—into a REST API with an interactive book collection.
+[Open the live app](https://orbit-library.onrender.com/) · [Explore the demo](https://orbit-library.onrender.com/?demo)
 
-[**Open the live app →**](https://orbit-library.onrender.com/) · [Explore the demo](https://orbit-library.onrender.com/?demo) · [Spring Petclinic inspiration](https://github.com/spring-projects/spring-petclinic)
-
-## About the project
-
-This CRUD project was inspired by [Spring Petclinic](https://github.com/spring-projects/spring-petclinic), a sample Spring application. I used the idea of a small, familiar domain to practise how controllers, services, repositories, and database entities work together, applying those concepts to a library.
-
-The project explores REST API design, dependency injection, relational data modelling, JPA queries, transaction boundaries, and a frontend that connects those pieces into a usable application.
-
-## Preview
-
-> **App walkthrough / GIF — coming soon**
->
-> A space for a short walkthrough of the collection, student registration, and borrowing flow. In the meantime, try the [live application](https://orbit-library.onrender.com/) or the [isolated demo](https://orbit-library.onrender.com/?demo).
-
-The demo includes nine sample books and fictional readers. Demo changes stay in memory in the browser and reset on reload; the live app uses the cloud database.
+![Orbit Library walkthrough: browse books, borrow and return a book, and view students](docs/walkthrough.gif)
 
 ## Features
 
@@ -33,7 +19,7 @@ The demo includes nine sample books and fictional readers. Demo changes stay in 
 
 Records referenced by borrowing history cannot be deleted. Returning a book restores one available copy; it does not automatically lend the book to the next person in a waitlist.
 
-## ER model / domain model
+## ER Model / Domain Model
 
 ```mermaid
 erDiagram
@@ -79,7 +65,7 @@ flowchart LR
 
 Controllers handle HTTP requests and input validation. Services coordinate business rules such as borrowing, returns, and edit history. Repositories read and update relational records through Spring Data JPA.
 
-### Data access & database
+## Data Access & Database
 
 - **Persistence:** JPA entities map to `books`, `students`, and `borrowings`. Repositories combine inherited JPA operations with explicit JPQL queries.
 - **Borrowing:** A conditional update decreases stock only when a copy is available. The stock update and borrowing insert run in one transaction, so a failed insert rolls both operations back.
@@ -88,88 +74,39 @@ Controllers handle HTTP requests and input validation. Services coordinate busin
 - **Schema:** The local and cloud profiles use `ddl-auto=validate`. Tables must exist before startup; the application does not create or alter them automatically.
 - **Storage:** Local development uses MySQL. The deployed app uses TiDB Cloud's MySQL-compatible endpoint with TLS certificate verification. Backend tests use a separate H2 database.
 
-## Tech stack
+## Tech Stack
 
 | Layer | Technologies |
 | --- | --- |
-| Backend | Java 25, Spring Boot 4.1.1, Spring MVC, Spring Data JPA / Hibernate |
-| Frontend | React 19, Vite, Three.js, Phosphor Icons |
-| Database | MySQL-compatible TiDB Cloud; H2 for backend tests |
-| Build & tests | Maven Wrapper, Node.js 22, Node test runner, Playwright |
-| Deployment | Multi-stage Docker image, Render, GitHub Actions |
+| Backend | Java 25, Spring Boot, Spring Data JPA |
+| Frontend | React, Vite, Three.js |
+| Database | MySQL / TiDB; H2 for tests |
+| Deployment | Docker, Render, GitHub Actions |
 
-## Run locally
+## Run Locally
 
-### Prerequisites
+Requires JDK 25, Node.js 22, and MySQL.
 
-- JDK 25
-- Node.js 22 and npm
-- A running MySQL database
-
-Clone the repository:
+1. Clone the repository and prepare the `library` database with the required tables.
+2. Set `DB_PASSWORD` in your environment. The default database connection is `localhost:3306/library`, with username `root`.
+3. Start the backend and frontend in separate terminals from the repository root:
 
 ```bash
-git clone https://github.com/sophiasuebeen/library-management-system.git
-cd library-management-system
-```
-
-### 1. Create the database tables
-
-On a **new, empty local database**, run the following SQL. For an existing database, review its schema instead of recreating tables.
-
-```sql
-CREATE DATABASE library;
-USE library;
-
-CREATE TABLE books (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    author VARCHAR(255) NOT NULL,
-    available_copies INT NOT NULL
-);
-
-CREATE TABLE students (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL
-);
-
-CREATE TABLE borrowings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    student_id INT NOT NULL,
-    book_id INT NOT NULL,
-    borrowed_date DATE NOT NULL,
-    returned_date DATE,
-    FOREIGN KEY (student_id) REFERENCES students(id),
-    FOREIGN KEY (book_id) REFERENCES books(id)
-);
-```
-
-### 2. Start the backend
-
-The default configuration connects to `jdbc:mysql://localhost:3306/library` as `root`. Set `DB_PASSWORD` in your terminal or IDE environment to your local database password before starting the app. You can override the URL and username with `SPRING_DATASOURCE_URL` and `SPRING_DATASOURCE_USERNAME`.
-
-```bash
+# Backend
 cd library
 ./mvnw spring-boot:run
 ```
 
-The API runs at [localhost:8080](http://localhost:8080). On Windows, use `mvnw.cmd`.
-
-### 3. Start the frontend
-
-In another terminal, from the repository root:
-
 ```bash
+# Frontend
 cd frontend
 npm ci
 npm run dev
 ```
 
-Open [localhost:5173](http://localhost:5173). Vite proxies `/books`, `/students`, and `/borrowings` to the backend on port 8080.
+Open [localhost:5173](http://localhost:5173). For frontend-only demo mode, use [localhost:5173/?demo](http://localhost:5173/?demo); no backend or database is required.
 
-To explore only the frontend, open [localhost:5173/?demo](http://localhost:5173/?demo). Demo mode does not require the backend or a database.
-
-## API overview
+## API Overview
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
@@ -188,61 +125,28 @@ To explore only the frontend, open [localhost:5173/?demo](http://localhost:5173/
 | GET | `/books/{bookId}/waitlist/next` | View the next reader |
 | POST | `/books/{bookId}/waitlist/next/remove` | Remove the next queue entry |
 
-For example, send this JSON to `POST /books`:
-
-```json
-{
-  "title": "The Creative Act",
-  "author": "Rick Rubin",
-  "copies": 3
-}
-```
-
 ## Tests
 
-Backend tests run against H2 and do not require production database credentials:
+Run each set of commands from the repository root:
 
 ```bash
+# Backend
 cd library
-./mvnw -B -ntp verify
+./mvnw verify
 ```
 
-Frontend checks and production build:
-
 ```bash
+# Frontend
 cd frontend
 npm ci
 npm test
 npm run test:sites
-npm run build
 ```
 
-For browser tests, install Chromium with `npx playwright install chromium --no-shell`, run `npm run dev` in another terminal, and run `npm run test:browser`. The browser suite exercises the isolated demo.
+## Notes
 
-GitHub Actions builds the Docker image, runs the included frontend and Java checks, and runs browser flows and mobile-layout checks.
+The public app has no login, so use fictional data. The free Render service may take a moment to wake after inactivity.
 
-## Deployment
+Books, students, and borrowing history persist in the database. Waitlists and undo history reset when the server restarts.
 
-The root [Dockerfile](Dockerfile) builds React and packages its output with the Spring Boot application. Render serves the frontend and API from the same origin; TiDB stores the persistent library records.
-
-[render.yaml](render.yaml) defines the free Docker web service and the `/books` health check. The cloud profile requires these environment variables:
-
-| Variable | Purpose |
-| --- | --- |
-| `SPRING_PROFILES_ACTIVE` | Set to `cloud` |
-| `DB_URL` | MySQL JDBC URL for the `library` database, including verified TLS settings |
-| `DB_USERNAME` | Database username from TiDB's Connect panel |
-| `DB_PASSWORD` | Database password generated in TiDB |
-
-Keep credentials in Render's environment settings and out of source control. The database password is separate from a TiDB Cloud API key.
-
-## Current scope
-
-This is a learning and portfolio project. The public app currently has no authentication or authorization, so use fictional data: anyone with the URL can read and modify records.
-
-Books, students, and borrowing history persist in the database. Waitlists and undo history are held in server memory and reset when the service restarts, redeploys, or spins down. Render's free instance can sleep during inactivity, so the first request may take longer.
-
-## Acknowledgements
-
-- [Spring Petclinic](https://github.com/spring-projects/spring-petclinic) — inspiration for learning Spring through a practical domain-based CRUD project.
-- Cover artwork sources are documented in [frontend/public/covers/SOURCES.md](frontend/public/covers/SOURCES.md).
+[Cover artwork sources](frontend/public/covers/SOURCES.md)
