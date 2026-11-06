@@ -1,8 +1,8 @@
 # Orbit Library · Library Management System
 
-A full-stack library management application built with Java, Spring Boot, and React. Orbit Library provides a REST API and an interactive book collection for cataloguing books, registering students, borrowing, and returning.
+Orbit Library is a full-stack library database management application built with Java, Spring Boot, and React. It provides a REST API and an interactive book collection for cataloguing books, registering students, borrowing, and returning.
 
-[Open the live app](https://orbit-library.onrender.com/) · [Explore the demo](https://orbit-library.onrender.com/?demo)
+[Explore the demo](https://orbit-library.onrender.com/?demo)
 
 ![Orbit Library walkthrough: browse books, borrow and return a book, and view students](docs/walkthrough.gif)
 
@@ -19,7 +19,7 @@ A full-stack library management application built with Java, Spring Boot, and Re
 
 Records referenced by borrowing history cannot be deleted. Returning a book restores one available copy; it does not automatically lend the book to the next person in a waitlist.
 
-## ER Model / Domain Model
+## ER Model
 
 ```mermaid
 erDiagram
@@ -142,11 +142,3 @@ npm ci
 npm test
 npm run test:sites
 ```
-
-## Notes
-
-The public app has no login, so use fictional data. The free Render service may take a moment to wake after inactivity.
-
-Books, students, and borrowing history persist in the database. Waitlists and undo history reset when the server restarts.
-
-[Cover artwork sources](frontend/public/covers/SOURCES.md)
