@@ -5,8 +5,8 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    # Enable checksPass after a GitHub Actions workflow has been added.
-    autoDeployTrigger: 'off'
+    # Deploy automatically only after the GitHub Actions checks pass.
+    autoDeployTrigger: checksPass
     healthCheckPath: /books
     envVars:
       - key: SPRING_PROFILES_ACTIVE
