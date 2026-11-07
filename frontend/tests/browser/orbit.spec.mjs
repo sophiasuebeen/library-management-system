@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
-test('compact 3D orbit rotates with wheel and page scroll', async ({ page }) => {
+test('3D orbit rotates with wheel and page scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 1487, height: 620 });
   await page.goto('/?demo');
+  await page.getByRole('button', { name: 'Collection', exact: true }).click();
   const canvas = page.locator('.orbit canvas');
   await expect(canvas).toHaveAttribute('data-textures', 'ready');
   await expect(canvas).toHaveAttribute('data-ready', 'true');
   const orbit = await page.locator('.orbit').boundingBox();
-  expect(orbit.width).toBeLessThanOrEqual(1060);
-  expect(orbit.height).toBeLessThanOrEqual(340);
+  expect(orbit.height).toBeLessThanOrEqual(460);
   const before = Number(await canvas.getAttribute('data-angle'));
   await page.mouse.move(orbit.x + orbit.width / 2, orbit.y + orbit.height / 2);
   await page.mouse.wheel(0, 160);
@@ -21,7 +22,9 @@ test('compact 3D orbit rotates with wheel and page scroll', async ({ page }) => 
 });
 test('reduced motion disables scroll rotation and retains book navigation', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1487, height: 620 });
   await page.goto('/?demo');
+  await page.getByRole('button', { name: 'Collection', exact: true }).click();
   const canvas = page.locator('.orbit canvas');
   await expect(canvas).toHaveAttribute('data-textures', 'ready');
   await expect(canvas).toHaveAttribute('data-ready', 'true');
@@ -38,6 +41,7 @@ test('reduced motion disables scroll rotation and retains book navigation', asyn
 
 test('clicking a visible 3D cover selects that book', async ({ page }) => {
   await page.goto('/?demo');
+  await page.getByRole('button', { name: 'Collection', exact: true }).click();
   const canvas = page.locator('.orbit canvas');
   await expect(canvas).toHaveAttribute('data-textures', 'ready');
   await expect(canvas).toHaveAttribute('data-ready', 'true');
@@ -45,4 +49,17 @@ test('clicking a visible 3D cover selects that book', async ({ page }) => {
   // Visible orange Klara cover immediately to the left of the front-center book.
   await canvas.click({ position: { x: bounds.width * 0.43, y: bounds.height * 0.73 } });
   await expect(page.getByRole('heading', { name: 'Klara and the Sun', exact: true })).toBeVisible();
+});
+
+test('books without catalogued artwork get typeset covers', async ({ page }) => {
+  const json = body => route => route.fulfill({ json: body });
+  await page.route('**/books', json([{ id: 1, title: 'Atomic Habits', author: 'James Clear', availableCopies: 10 }, { id: 2, title: 'The Creative Act', author: 'Rick Rubin', availableCopies: 2 }, { id: 3, title: 'Postman Test Book', author: 'A. Tester', availableCopies: 1 }]));
+  await page.route('**/students', json([]));
+  await page.route('**/borrowings', json([]));
+  await page.goto('/');
+  const canvas = page.locator('.orbit canvas');
+  await expect(canvas).toHaveAttribute('data-textures', 'ready');
+  await expect(canvas).toHaveAttribute('data-title-covers', '2');
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: 'qa/title-covers.png' });
 });

@@ -35,3 +35,14 @@ test('live adapter sends compatible payloads, accepts empty success, and never r
   await assert.rejects(request('/books/4/waitlist/next/remove', 'POST'), /may have completed/);
   assert.equal(calls, 1);
 });
+test('title covers wrap text, split long words, and mark truncation', async () => {
+  const { wrapLines } = await import('../src/titleCover.js');
+  const measure = text => text.length;
+  assert.deepEqual(wrapLines('Three Body Problem', measure, 10, 3), { lines: ['Three Body', 'Problem'], truncated: false });
+  assert.deepEqual(wrapLines('Pneumonoultramicroscopic', measure, 10, 5).lines, ['Pneumonoul', 'tramicrosc', 'opic']);
+  const cut = wrapLines('one two three four five six', measure, 5, 2);
+  assert.equal(cut.truncated, true);
+  assert.equal(cut.lines.length, 2);
+  assert.ok(cut.lines[1].endsWith('…') && cut.lines[1].length <= 5);
+  assert.deepEqual(wrapLines(undefined, measure, 10, 2), { lines: [], truncated: false });
+});
