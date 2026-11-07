@@ -1,9 +1,38 @@
 import { test, expect } from '@playwright/test';
+test('home shows a centered search above the orbit and opens the collection', async ({ page }) => {
+  await page.goto('/?demo');
+  const canvas = page.locator('.orbit canvas');
+  await expect(canvas).toHaveAttribute('data-textures', 'ready');
+  await expect(canvas).toHaveAttribute('data-ready', 'true');
+  await expect(page.getByRole('button', { name: 'Home', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByText('ASIA/SEOUL')).toHaveCount(0);
+  await expect(page.getByText(/within reach|big ideas/i)).toHaveCount(0);
+  const search = await page.getByRole('searchbox', { name: 'Search collection' }).boundingBox();
+  const orbit = await page.locator('.orbit').boundingBox();
+  expect(search.y + search.height).toBeLessThanOrEqual(orbit.y);
+  const form = await page.getByRole('search').boundingBox();
+  expect(Math.abs(form.x + form.width / 2 - page.viewportSize().width / 2)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+  // Arrows browse in place; only an explicit book click or a search submit leaves home.
+  await page.getByRole('button', { name: 'Next book', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Home', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('button', { name: 'Previous book', exact: true }).click();
+  await page.screenshot({ path: 'qa/home.png' });
+  const bounds = await canvas.boundingBox();
+  await canvas.click({ position: { x: bounds.width * 0.43, y: bounds.height * 0.73 } });
+  await expect(page.getByRole('button', { name: 'Collection', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByLabel('Selected book').getByRole('heading')).toBeVisible();
+  await page.getByRole('button', { name: 'Orbit Library', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Search collection' }).fill('Pachinko');
+  await page.getByRole('searchbox', { name: 'Search collection' }).press('Enter');
+  await expect(page.getByRole('heading', { name: 'Pachinko', exact: true })).toBeVisible();
+});
 test('collection, search, borrow, return, students, and waitlists', async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto('/?demo');
+  await page.getByRole('button', { name: 'Collection', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'The Creative Act', exact: true })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator('.orbit canvas')).toHaveAttribute('data-textures', 'ready');
@@ -14,12 +43,12 @@ test('collection, search, borrow, return, students, and waitlists', async ({ pag
   await page.getByRole('button', { name: 'Previous book', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'The Creative Act', exact: true })).toBeVisible();
   await page.getByRole('searchbox', { name: 'Search collection' }).fill('no such story');
-  await expect(page.getByRole('heading', { name: 'No stories found.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No books found.' })).toBeVisible();
   await page.getByRole('button', { name: 'Clear search' }).click();
-  await page.getByRole('button', { name: 'Borrow book', exact: true }).click();
+  await page.getByRole('button', { name: 'Check out', exact: true }).click();
   await page.getByRole('combobox', { name: 'Student', exact: true }).selectOption('1');
-  await page.getByRole('button', { name: 'Confirm borrowing', exact: true }).click();
-  await expect(page.getByText('2 copies available', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm check-out', exact: true }).click();
+  await expect(page.getByLabel('Selected book')).toContainText('2 copies');
   await page.getByRole('button', { name: 'Borrowings', exact: true }).click();
   const loan = page.getByRole('row').filter({ hasText: 'The Creative Act' });
   await expect(loan).toContainText('Alex Morgan');
@@ -32,7 +61,7 @@ test('collection, search, borrow, return, students, and waitlists', async ({ pag
   await page.getByRole('button', { name: 'Save changes' }).click();
   await expect(page.getByRole('cell', { name: 'Taylor Reader', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Waitlists', exact: true }).click();
-  await page.getByLabel('Choose a book').selectOption('4');
+  await page.getByRole('button', { name: 'Ways of Seeing', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Alex Morgan', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Join waitlist', exact: true }).click();
   await page.getByRole('combobox', { name: 'Student', exact: true }).selectOption('2');
@@ -45,6 +74,9 @@ test('collection, search, borrow, return, students, and waitlists', async ({ pag
 test('mobile layout and keyboard carousel work without page overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/?demo');
+  await expect(page.locator('.orbit')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Collection', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'The Creative Act', exact: true })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -53,7 +85,7 @@ test('mobile layout and keyboard carousel work without page overflow', async ({ 
   await expect(page.getByRole('heading', { name: 'Pachinko', exact: true })).toBeVisible();
   await page.keyboard.press('ArrowLeft');
   await page.screenshot({ path: 'qa/mobile.png', fullPage: true });
-  await page.getByRole('button', { name: 'Borrow book', exact: true }).click();
+  await page.getByRole('button', { name: 'Check out', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);

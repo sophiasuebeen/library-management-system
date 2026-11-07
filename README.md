@@ -4,7 +4,7 @@ Orbit Library is a full-stack library database management application built with
 
 [Explore the demo](https://orbit-library.onrender.com/?demo)
 
-![Orbit Library walkthrough: browse books, borrow and return a book, and view students](docs/walkthrough.gif)
+![Orbit Library walkthrough: search from the home screen, open a catalog record, check out and return a book, and view students and waitlists](docs/walkthrough.gif)
 
 ## Features
 
@@ -15,7 +15,7 @@ Orbit Library is a full-stack library database management application built with
 | Borrowings | Borrow an available book, view current loans, and return a book |
 | Waitlists | Join a book's queue when no copies are available, view the next reader, and remove the next entry |
 | Book edits | Undo the most recent book-details edit while its in-memory history is available |
-| Interface | Browse books in an interactive 3D orbit or index view, with matching cover artwork for the demo titles |
+| Interface | Start from a home screen with search above an interactive 3D orbit; browse the collection in orbit or index view beside a catalog record. Demo titles use matching cover artwork, and other books get a typeset cover with their title and author |
 
 Records referenced by borrowing history cannot be deleted. Returning a book restores one available copy; it does not automatically lend the book to the next person in a waitlist.
 

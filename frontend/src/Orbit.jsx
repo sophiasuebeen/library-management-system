@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { ArrowDown, CaretLeft, CaretRight } from '@phosphor-icons/react';
+import { drawTitleCover } from './titleCover';
 import './orbit.css';
 
 const TAU = Math.PI * 2;
 const shortestAngle = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 
-export function Orbit({ books, selected, onSelect }) {
+export function Orbit({ books, selected, onSelect, onOpen }) {
   const host = useRef(null);
   const engine = useRef(null);
-  const latest = useRef({ books, selected, onSelect });
-  latest.current = { books, selected, onSelect };
+  const latest = useRef({ books, selected, onSelect, onOpen });
+  latest.current = { books, selected, onSelect, onOpen };
   const [unavailable, setUnavailable] = useState(false);
   const signature = books.map(book => `${book.id}:${book.cover ?? ''}`).join('|');
 
@@ -69,7 +70,7 @@ export function Orbit({ books, selected, onSelect }) {
     if (!entries.some(book => book.cover)) renderer.domElement.dataset.textures = 'ready';
     const atlas = entries.map(book => {
       const face = material({ color: book.cover ? 0xffffff : 0xe9e5dc });
-      const spine = material({ color: 0x645f54 });
+      const spine = material({ color: book.cover ? 0x645f54 : 0xd9d5ca });
       if (book.cover) {
         const texture = textureLoader.load(book.cover, () => {
           if (disposed) { texture.dispose(); return; }
@@ -88,9 +89,26 @@ export function Orbit({ books, selected, onSelect }) {
           renderSoon();
         }, undefined, () => { if (!disposed) renderSoon(); });
         textures.push(texture);
+      } else {
+        const canvas = document.createElement('canvas');
+        drawTitleCover(canvas, book);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        textures.push(texture);
+        face.color.set(0xffffff);
+        face.map = texture;
+        // Redraw once the web font arrives so the first paint's fallback font does not stick.
+        document.fonts?.load('600 60px "DM Sans"').then(() => {
+          if (disposed) return;
+          drawTitleCover(canvas, book);
+          texture.needsUpdate = true;
+          renderSoon();
+        }).catch(() => {});
       }
       return { face, spine };
     });
+    renderer.domElement.dataset.titleCovers = String(entries.filter(book => !book.cover).length);
     const ring = new THREE.Group();
     scene.add(ring);
     const pickable = [];
@@ -157,7 +175,7 @@ export function Orbit({ books, selected, onSelect }) {
       const height = element.clientHeight;
       if (!width || !height) return;
       camera.aspect = width / height;
-      const frameHeight = Math.max(4.4, 8.8 / camera.aspect);
+      const frameHeight = Math.max(4.4, 9.6 / camera.aspect);
       camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(frameHeight / (2 * camera.position.length())));
       camera.updateProjectionMatrix();
       renderer.setSize(width, height);
@@ -207,7 +225,7 @@ export function Orbit({ books, selected, onSelect }) {
       pointer.set((event.clientX - bounds.left) / bounds.width * 2 - 1, -(event.clientY - bounds.top) / bounds.height * 2 + 1);
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(pickable)[0];
-      if (hit) { align(hit.object.userData.bookId); latest.current.onSelect(hit.object.userData.bookId); }
+      if (hit) { align(hit.object.userData.bookId); latest.current.onSelect(hit.object.userData.bookId); latest.current.onOpen?.(hit.object.userData.bookId); }
     }
     function pointerCancel() { down = null; }
     const canvas = renderer.domElement;
