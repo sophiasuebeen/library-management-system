@@ -2,7 +2,7 @@
 
 Orbit Library is a full-stack library database management application built with Java, Spring Boot, and React. It provides a REST API and an interactive book collection for cataloguing books, registering students, borrowing, and returning.
 
-[Explore the demo](https://orbit-library.onrender.com/?demo) \cdot [live library](https://orbit-library.onrender.com)
+[Explore the demo](https://orbit-library.onrender.com/?demo) $\cdot$ [live library](https://orbit-library.onrender.com)
 
 ![Orbit Library walkthrough: search from the home screen, open a catalog record, check out and return a book, and view students and waitlists](docs/walkthrough.gif)
 
