@@ -90,3 +90,69 @@ test('mobile layout and keyboard carousel work without page overflow', async ({ 
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64');
+
+test('demo covers can be uploaded, replaced and removed', async ({ page }) => {
+  await page.goto('/?demo');
+  await page.getByRole('button', { name: 'Collection', exact: true }).click();
+  await page.getByRole('button', { name: 'View index' }).click();
+  const firstCover = page.locator('.index-book img').first();
+  await expect(firstCover).toHaveAttribute('src', '/covers/creative-act.png');
+  await expect(page.getByRole('button', { name: 'Remove cover' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Upload cover' }).click();
+  await page.getByLabel('Cover image').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: png });
+  await page.getByRole('dialog').getByRole('button', { name: 'Upload cover' }).click();
+  await expect(page.getByText('Cover uploaded.')).toBeVisible();
+  await expect(firstCover).toHaveAttribute('src', /^blob:/);
+
+  await page.getByRole('button', { name: 'Remove cover' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Remove cover' }).click();
+  await expect(page.getByText('Cover removed.')).toBeVisible();
+  await expect(firstCover).toHaveAttribute('src', '/covers/creative-act.png');
+});
+
+test('live cover uploads send a JPEG and show the stored cover', async ({ page }) => {
+  const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  const uploads = [];
+  let covers = [];
+  await page.route(/\/(students|borrowings)$/, route => route.fulfill(json([])));
+  await page.route(/\/books$/, route => route.fulfill(json([{ id: 7, title: 'Zero to One', author: 'Peter Thiel', availableCopies: 1 }])));
+  await page.route(/\/books\/covers$/, route => route.fulfill(json(covers)));
+  await page.route(/\/books\/7\/cover(\?.*)?$/, route => {
+    const request = route.request();
+    if (request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'image/png', body: png });
+    uploads.push({ type: request.headers()['content-type'], size: request.postDataBuffer()?.length });
+    if (uploads.length === 1) return route.fulfill({ status: 413 });
+    covers = [{ bookId: 7, version: 42 }];
+    return route.fulfill({ status: 204 });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Collection', exact: true }).click();
+  await page.getByRole('button', { name: 'Upload cover' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('Admin password')).toHaveCount(0);
+  await dialog.getByLabel('Cover image').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: png });
+  await dialog.getByRole('button', { name: 'Upload cover' }).click();
+  await expect(dialog.getByRole('alert')).toContainText('too large');
+
+  await dialog.getByRole('button', { name: 'Upload cover' }).click();
+  await expect(page.getByText('Cover uploaded.')).toBeVisible();
+  expect(uploads[1].type).toBe('image/jpeg');
+  expect(uploads[1].size).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'View index' }).click();
+  await expect(page.locator('.index-book img')).toHaveAttribute('src', '/books/7/cover?v=42');
+  await expect(page.getByRole('button', { name: 'Replace cover' })).toBeVisible();
+});
+
+test('the library still loads when covers cannot be read', async ({ page }) => {
+  const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  await page.route(/\/(students|borrowings)$/, route => route.fulfill(json([])));
+  await page.route(/\/books$/, route => route.fulfill(json([{ id: 7, title: 'Zero to One', author: 'Peter Thiel', availableCopies: 1 }])));
+  await page.route(/\/books\/covers$/, route => route.fulfill({ status: 500 }));
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Collection', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Zero to One' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Upload cover' })).toBeVisible();
+});
