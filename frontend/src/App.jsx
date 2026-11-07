@@ -32,7 +32,7 @@ function FormDialog({ config, onClose, onComplete }) {
       <fieldset disabled={busy}>{config.fields?.map(field => <label className="field" key={field.name}>{field.label}
         {field.options ? <select aria-label={field.label} name={field.name} required defaultValue={field.value}><option value="" disabled>Choose {field.label.toLowerCase()}</option>{field.options.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
           : field.type === 'file' ? <input aria-label={field.label} name={field.name} type="file" accept={field.accept} required/>
-          : <input aria-label={field.label} name={field.name} type={field.type || 'text'} autoComplete={field.type === 'password' ? 'off' : undefined} required defaultValue={field.value ?? ''} min={field.type === 'number' ? 0 : undefined} max={field.type === 'number' ? 2147483647 : undefined} step={field.type === 'number' ? 1 : undefined} maxLength={255}/>}
+          : <input aria-label={field.label} name={field.name} type={field.type || 'text'} required defaultValue={field.value ?? ''} min={field.type === 'number' ? 0 : undefined} max={field.type === 'number' ? 2147483647 : undefined} step={field.type === 'number' ? 1 : undefined} maxLength={255}/>}
       </label>)}</fieldset>
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <button className="primary" type="submit" disabled={busy}>{busy ? 'Saving…' : config.label || 'Save changes'}<ArrowRight size={23}/></button>
@@ -58,7 +58,6 @@ export function App() {
   const [queue, setQueue] = useState({ loading: false, next: null, error: '' });
   const [queueVersion, setQueueVersion] = useState(0);
   const loadVersion = useRef(0);
-  const adminPassword = useRef('');
   async function load() {
     const version = ++loadVersion.current;
     setLoading(true); setLoadError('');
@@ -99,23 +98,11 @@ export function App() {
   }
   function confirm(title, description, path, method, success) { setForm({ title, description, action: () => request(path, method), label: 'Confirm', success }); }
   function setCopies(book) { setForm({ title: 'Set available copies.', description: 'This replaces the current available count. It does not add to it.', fields: [numberField('copies', 'Available copies', book.availableCopies)], action: values => request(`/books/${book.id}/copies`, 'PATCH', { copies: Number(values.copies) }), success: 'Available copies updated.' }); }
-  const passwordFields = () => demoMode || adminPassword.current ? [] : [{ name: 'password', label: 'Admin password', type: 'password' }];
-  async function coverRequest(book, method, password, body) {
-    const secret = adminPassword.current || password || '';
-    if (!demoMode && !/^[\x21-\x7e]+$/.test(secret)) throw new Error('Wrong admin password.');
-    try {
-      await request(`/books/${book.id}/cover`, method, undefined, undefined, { body, headers: { 'X-Admin-Password': secret } });
-      adminPassword.current = secret;
-    } catch (error) {
-      if (error.message === 'Wrong admin password.') adminPassword.current = '';
-      throw error;
-    }
-  }
   function uploadCover(book) {
-    setForm({ title: 'Upload a cover.', description: `Choose a cover for “${book.title}”. It is cropped to the shape of a book.`, fields: [{ name: 'cover', label: 'Cover image', type: 'file', accept: 'image/jpeg,image/png,image/webp' }, ...passwordFields()], action: async values => coverRequest(book, 'PUT', values.password, await prepareCover(values.cover)), label: 'Upload cover', success: 'Cover uploaded.' });
+    setForm({ title: 'Upload a cover.', description: `Choose a cover for “${book.title}”. It is cropped to the shape of a book.`, fields: [{ name: 'cover', label: 'Cover image', type: 'file', accept: 'image/jpeg,image/png,image/webp' }], action: async values => request(`/books/${book.id}/cover`, 'PUT', undefined, undefined, { body: await prepareCover(values.cover) }), label: 'Upload cover', success: 'Cover uploaded.' });
   }
   function removeCover(book) {
-    setForm({ title: 'Remove this cover?', description: `Remove the uploaded cover from “${book.title}”.`, fields: passwordFields(), action: values => coverRequest(book, 'DELETE', values.password), label: 'Remove cover', success: 'Cover removed.' });
+    setForm({ title: 'Remove this cover?', description: `Remove the uploaded cover from “${book.title}”.`, action: () => request(`/books/${book.id}/cover`, 'DELETE'), label: 'Remove cover', success: 'Cover removed.' });
   }
   function openBook(id) { setSelectedId(id); navigate('Collection'); }
   const totalCopies = data.books.reduce((total, book) => total + book.availableCopies, 0);

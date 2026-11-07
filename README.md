@@ -88,7 +88,7 @@ Controllers handle HTTP requests and input validation. Services coordinate busin
 Requires JDK 25, Node.js 22, and MySQL.
 
 1. Clone the repository and prepare the `library` database with the required tables, then run `docs/book-covers.sql` once.
-2. Set `DB_PASSWORD` in your environment. The default database connection is `localhost:3306/library`, with username `root`. Set `COVER_ADMIN_PASSWORD` (English letters, numbers and symbols) to allow cover uploads; without it, cover changes are refused.
+2. Set `DB_PASSWORD` in your environment. The default database connection is `localhost:3306/library`, with username `root`.
 3. Start the backend and frontend in separate terminals from the repository root:
 
 ```bash
@@ -119,8 +119,8 @@ Open [localhost:5173](http://localhost:5173). For frontend-only demo mode, use [
 | POST | `/books/undo` | Undo the last book-details edit |
 | GET | `/books/covers` | List which books have uploaded covers, with each cover's version |
 | GET | `/books/{id}/cover` | Read an uploaded cover image |
-| PUT | `/books/{id}/cover` | Upload or replace a cover: raw JPEG, PNG, or WebP bytes up to 2 MB, with the `X-Admin-Password` header |
-| DELETE | `/books/{id}/cover` | Remove an uploaded cover, with the `X-Admin-Password` header |
+| PUT | `/books/{id}/cover` | Upload or replace a cover: raw JPEG, PNG, or WebP bytes up to 2 MB |
+| DELETE | `/books/{id}/cover` | Remove an uploaded cover |
 | GET / POST | `/students` | List or register students |
 | PATCH / DELETE | `/students/{id}` | Edit or delete a student |
 | GET / POST | `/borrowings` | List current loans or borrow a book |

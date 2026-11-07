@@ -32,7 +32,6 @@ import com.example.library.service.BookService;
 @ActiveProfiles("test")
 @Sql("/reset-schema.sql")
 class BookCoverControllerTests {
-    private static final String PASSWORD = "test-password";
     private static final byte[] JPEG = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 1, 2, 3 };
     private static final byte[] PNG = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 4 };
     private static final byte[] WEBP = { 'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P' };
@@ -45,17 +44,13 @@ class BookCoverControllerTests {
     @BeforeEach
     void setUp() {
         jdbc.update("INSERT INTO books (id, title, author, available_copies) VALUES (12, 'Atomic Habits', 'James Clear', 2)");
-        client = clientWithPassword(PASSWORD);
-    }
-
-    private MockMvc clientWithPassword(String password) {
-        return MockMvcBuilders.standaloneSetup(
-                new BookCoverController(covers, books, password),
+        client = MockMvcBuilders.standaloneSetup(
+                new BookCoverController(covers, books),
                 new BookController(books, new BookService(books))).build();
     }
 
     private static MockHttpServletRequestBuilder upload(int id, byte[] image) {
-        return put("/books/{id}/cover", id).header("X-Admin-Password", PASSWORD).content(image);
+        return put("/books/{id}/cover", id).content(image);
     }
 
     @Test
@@ -80,10 +75,10 @@ class BookCoverControllerTests {
                 .andExpect(content().bytes(PNG));
         client.perform(get("/books/covers")).andExpect(jsonPath("$.length()").value(1));
 
-        client.perform(delete("/books/12/cover").header("X-Admin-Password", PASSWORD))
+        client.perform(delete("/books/12/cover"))
                 .andExpect(status().isNoContent());
         client.perform(get("/books/12/cover")).andExpect(status().isNotFound());
-        client.perform(delete("/books/12/cover").header("X-Admin-Password", PASSWORD))
+        client.perform(delete("/books/12/cover"))
                 .andExpect(status().isNotFound());
     }
 
@@ -96,30 +91,6 @@ class BookCoverControllerTests {
                 .andExpect(header().string("Cache-Control", "max-age=31536000, public, immutable"));
         client.perform(get("/books/12/cover").param("v", String.valueOf(version - 1)))
                 .andExpect(header().string("Cache-Control", "no-cache"));
-    }
-
-    @Test
-    void rejectsMissingOrWrongPasswordWithoutChangingCovers() throws Exception {
-        client.perform(upload(12, JPEG)).andExpect(status().isNoContent());
-
-        client.perform(put("/books/12/cover").content(PNG)).andExpect(status().isUnauthorized());
-        client.perform(put("/books/12/cover").header("X-Admin-Password", "wrong").content(PNG))
-                .andExpect(status().isUnauthorized());
-        client.perform(delete("/books/12/cover")).andExpect(status().isUnauthorized());
-        client.perform(delete("/books/12/cover").header("X-Admin-Password", "wrong"))
-                .andExpect(status().isUnauthorized());
-
-        client.perform(get("/books/12/cover")).andExpect(content().bytes(JPEG));
-    }
-
-    @Test
-    void refusesEveryWriteWhenNoPasswordIsConfigured() throws Exception {
-        MockMvc unconfigured = clientWithPassword("");
-        unconfigured.perform(put("/books/12/cover").header("X-Admin-Password", "").content(JPEG))
-                .andExpect(status().isForbidden());
-        unconfigured.perform(delete("/books/12/cover").header("X-Admin-Password", ""))
-                .andExpect(status().isForbidden());
-        client.perform(get("/books/12/cover")).andExpect(status().isNotFound());
     }
 
     @Test

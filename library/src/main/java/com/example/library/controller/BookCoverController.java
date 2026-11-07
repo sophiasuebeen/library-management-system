@@ -2,13 +2,10 @@ package com.example.library.controller;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -17,7 +14,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -33,13 +29,10 @@ public class BookCoverController {
 
     private final BookCoverRepository covers;
     private final BookRepository books;
-    private final byte[] adminPassword;
 
-    public BookCoverController(BookCoverRepository covers, BookRepository books,
-            @Value("${COVER_ADMIN_PASSWORD:}") String adminPassword) {
+    public BookCoverController(BookCoverRepository covers, BookRepository books) {
         this.covers = covers;
         this.books = books;
-        this.adminPassword = adminPassword.getBytes(StandardCharsets.UTF_8);
     }
 
     @GetMapping("/books/covers")
@@ -65,10 +58,7 @@ public class BookCoverController {
     }
 
     @PutMapping("/books/{id}/cover")
-    public ResponseEntity<Void> putCover(@PathVariable("id") int id,
-            @RequestHeader(name = "X-Admin-Password", required = false) String password,
-            InputStream body) throws IOException {
-        requireAdmin(password);
+    public ResponseEntity<Void> putCover(@PathVariable("id") int id, InputStream body) throws IOException {
         requirePositiveId(id);
         // Stop reading past the limit so an oversized upload cannot exhaust server memory.
         byte[] image = body.readNBytes(MAX_COVER_BYTES + 1);
@@ -88,25 +78,12 @@ public class BookCoverController {
     }
 
     @DeleteMapping("/books/{id}/cover")
-    public ResponseEntity<Void> deleteCover(@PathVariable("id") int id,
-            @RequestHeader(name = "X-Admin-Password", required = false) String password) {
-        requireAdmin(password);
+    public ResponseEntity<Void> deleteCover(@PathVariable("id") int id) {
         requirePositiveId(id);
         if (covers.delete(id) == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Cover not found.");
         }
         return ResponseEntity.noContent().build();
-    }
-
-    /** Fails closed: without a configured password, nobody can change covers. */
-    private void requireAdmin(String password) {
-        if (adminPassword.length == 0) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cover uploads are not enabled.");
-        }
-        if (password == null
-                || !MessageDigest.isEqual(adminPassword, password.getBytes(StandardCharsets.UTF_8))) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Wrong admin password.");
-        }
     }
 
     /** Trusts the file's own signature, not the Content-Type the caller claims. */

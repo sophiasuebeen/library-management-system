@@ -81,11 +81,11 @@ function demoRequest(path, method, data, body) {
   if (type === 'books') db.undo.push({ id, title: record.title, author: record.author });
   Object.assign(record, data); return null;
 }
-export async function request(path, method = 'GET', data, signal, { body, headers = {} } = {}) {
+export async function request(path, method = 'GET', data, signal, { body } = {}) {
   if (demoMode) return demoRequest(path, method, data, body);
   let response;
   try {
-    response = await fetch(path, { method, signal, headers: data === undefined ? headers : { 'Content-Type': 'application/json', ...headers }, body: data === undefined ? body : JSON.stringify(data) });
+    response = await fetch(path, { method, signal, headers: data === undefined ? {} : { 'Content-Type': 'application/json' }, body: data === undefined ? body : JSON.stringify(data) });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
     const failure = new Error(method === 'GET' ? 'Cannot reach the library. It may be waking up. Wait a moment, then try again.' : 'Connection lost. This action may have completed. Refresh and check the records before trying again.');
@@ -94,7 +94,7 @@ export async function request(path, method = 'GET', data, signal, { body, header
   }
   if (!response.ok) {
     const problem = await response.json().catch(() => ({}));
-    throw new Error(problem.detail || problem.message || ({ 400: 'Check your entries and try again.', 401: 'Wrong admin password.', 403: 'Cover uploads are not enabled on this server.', 413: 'This image is too large. Covers must be at most 2 MB.', 415: 'Choose a JPEG, PNG or WebP image.', 404: 'This record no longer exists. Refresh the library.', 409: 'This action conflicts with the current records. Check availability and borrowing history.' }[response.status]) || `Library request failed (HTTP ${response.status}).`);
+    throw new Error(problem.detail || problem.message || ({ 400: 'Check your entries and try again.', 413: 'This image is too large. Covers must be at most 2 MB.', 415: 'Choose a JPEG, PNG or WebP image.', 404: 'This record no longer exists. Refresh the library.', 409: 'This action conflicts with the current records. Check availability and borrowing history.' }[response.status]) || `Library request failed (HTTP ${response.status}).`);
   }
   if (method !== 'GET' || response.status === 204) return null;
   try { return await response.json(); } catch { throw new Error('The library could not load these records. Please try again.'); }

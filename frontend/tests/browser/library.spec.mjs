@@ -113,7 +113,7 @@ test('demo covers can be uploaded, replaced and removed', async ({ page }) => {
   await expect(firstCover).toHaveAttribute('src', '/covers/creative-act.png');
 });
 
-test('live cover uploads send the admin password and report rejection', async ({ page }) => {
+test('live cover uploads send a JPEG and show the stored cover', async ({ page }) => {
   const json = body => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   const uploads = [];
   let covers = [];
@@ -123,8 +123,8 @@ test('live cover uploads send the admin password and report rejection', async ({
   await page.route(/\/books\/7\/cover(\?.*)?$/, route => {
     const request = route.request();
     if (request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'image/png', body: png });
-    uploads.push({ password: request.headers()['x-admin-password'], type: request.headers()['content-type'], size: request.postDataBuffer()?.length });
-    if (request.headers()['x-admin-password'] !== 'right-password') return route.fulfill({ status: 401 });
+    uploads.push({ type: request.headers()['content-type'], size: request.postDataBuffer()?.length });
+    if (uploads.length === 1) return route.fulfill({ status: 413 });
     covers = [{ bookId: 7, version: 42 }];
     return route.fulfill({ status: 204 });
   });
@@ -132,24 +132,18 @@ test('live cover uploads send the admin password and report rejection', async ({
   await page.getByRole('button', { name: 'Collection', exact: true }).click();
   await page.getByRole('button', { name: 'Upload cover' }).click();
   const dialog = page.getByRole('dialog');
+  await expect(dialog.getByLabel('Admin password')).toHaveCount(0);
   await dialog.getByLabel('Cover image').setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: png });
-  await dialog.getByLabel('Admin password').fill('wrong-password');
   await dialog.getByRole('button', { name: 'Upload cover' }).click();
-  await expect(dialog.getByRole('alert')).toHaveText('Wrong admin password.');
+  await expect(dialog.getByRole('alert')).toContainText('too large');
 
-  await dialog.getByLabel('Admin password').fill('right-password');
   await dialog.getByRole('button', { name: 'Upload cover' }).click();
   await expect(page.getByText('Cover uploaded.')).toBeVisible();
-  expect(uploads.map(upload => upload.password)).toEqual(['wrong-password', 'right-password']);
   expect(uploads[1].type).toBe('image/jpeg');
   expect(uploads[1].size).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'View index' }).click();
   await expect(page.locator('.index-book img')).toHaveAttribute('src', '/books/7/cover?v=42');
-
-  // The password is remembered until the page reloads, so several covers need one entry.
-  await page.getByRole('button', { name: 'Replace cover' }).click();
-  await expect(page.getByLabel('Cover image')).toBeVisible();
-  await expect(page.getByLabel('Admin password')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Replace cover' })).toBeVisible();
 });
 
 test('the library still loads when covers cannot be read', async ({ page }) => {
