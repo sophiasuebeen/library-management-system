@@ -46,3 +46,19 @@ test('title covers wrap text, split long words, and mark truncation', async () =
   assert.ok(cut.lines[1].endsWith('…') && cut.lines[1].length <= 5);
   assert.deepEqual(wrapLines(undefined, measure, 10, 2), { lines: [], truncated: false });
 });
+test('cover crop keeps the book shape and stays centered inside the image', async () => {
+  const { coverCrop } = await import('../src/coverImage.js');
+  const wide = coverCrop(2000, 1000);
+  assert.equal(wide.height, 1000); assert.equal(wide.width, 633); assert.equal(wide.x, 683.5); assert.equal(wide.y, 0);
+  const tall = coverCrop(633, 2000);
+  assert.equal(tall.width, 633); assert.equal(tall.height, 1000); assert.equal(tall.x, 0); assert.equal(tall.y, 500);
+});
+test('uploaded covers win over catalogued artwork and removal restores it', async () => {
+  globalThis.window = { location: { search: '' } };
+  const { enrich } = await import('../src/data.js?enrich-test');
+  const book = { id: 3, title: 'Pachinko', author: 'Min Jin Lee', availableCopies: 1 };
+  assert.equal(enrich(book, [{ bookId: 3, version: 9 }]).cover, '/books/3/cover?v=9');
+  assert.equal(enrich(book, [{ bookId: 4, version: 9 }]).cover, '/covers/pachinko.jpg');
+  assert.equal(enrich(book).hasUploadedCover, false);
+  assert.equal(enrich({ ...book, title: 'Unknown' }).cover, undefined);
+});

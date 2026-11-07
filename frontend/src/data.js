@@ -10,21 +10,30 @@ export const artwork = [
   { title: "On Earth We’re Briefly Gorgeous", author: 'Ocean Vuong', cover: '/covers/earth.jpg', genre: 'Fiction', year: '2019', pages: 256 },
   { title: 'Klara and the Sun', author: 'Kazuo Ishiguro', cover: '/covers/klara.jpg', genre: 'Fiction', year: '2021', pages: 303 },
 ];
-export function enrich(book) {
+export function enrich(book, covers = []) {
   const match = artwork.find(a => a.title.toLowerCase() === book.title.toLowerCase());
-  return { ...match, ...book, cover: match?.cover, genre: match?.genre, year: match?.year, pages: match?.pages };
+  const uploaded = covers.find(cover => cover.bookId === book.id);
+  const cover = uploaded ? uploaded.url ?? `/books/${book.id}/cover?v=${uploaded.version}` : match?.cover;
+  return { ...match, ...book, cover, hasUploadedCover: Boolean(uploaded), genre: match?.genre, year: match?.year, pages: match?.pages };
 }
 const db = {
   books: artwork.map((book, i) => ({ id: i + 1, title: book.title, author: book.author, availableCopies: i === 3 ? 0 : i === 0 ? 3 : 2 })),
   students: [{ id: 1, name: 'Alex Morgan' }, { id: 2, name: 'Jamie Park' }, { id: 3, name: 'Sam Lee' }],
   borrowings: [{ borrowingId: 1, studentName: 'Jamie Park', bookTitle: 'Ways of Seeing', borrowedDate: '2026-11-01', bookId: 4 }],
-  queues: { 4: [1] }, undo: [], next: 100,
+  queues: { 4: [1] }, covers: {}, undo: [], next: 100,
 };
 const clone = value => structuredClone(value);
 const fail = message => { throw new Error(message); };
-function demoRequest(path, method, data) {
+function demoRequest(path, method, data, body) {
   const [, type, rawId, operation, next, remove] = path.split('/');
   const id = Number(rawId);
+  if (type === 'books' && rawId === 'covers') return Object.values(db.covers);
+  if (type === 'books' && operation === 'cover') {
+    if (db.covers[id]) URL.revokeObjectURL(db.covers[id].url);
+    if (method === 'PUT') db.covers[id] = { bookId: id, version: db.next++, url: URL.createObjectURL(body) };
+    else delete db.covers[id];
+    return null;
+  }
   if (type === 'books' && rawId === 'undo') {
     const old = db.undo.pop();
     if (!old) fail('There is no book edit to undo.');
@@ -72,11 +81,11 @@ function demoRequest(path, method, data) {
   if (type === 'books') db.undo.push({ id, title: record.title, author: record.author });
   Object.assign(record, data); return null;
 }
-export async function request(path, method = 'GET', data, signal) {
-  if (demoMode) return demoRequest(path, method, data);
+export async function request(path, method = 'GET', data, signal, { body, headers = {} } = {}) {
+  if (demoMode) return demoRequest(path, method, data, body);
   let response;
   try {
-    response = await fetch(path, { method, signal, headers: data === undefined ? {} : { 'Content-Type': 'application/json' }, body: data === undefined ? undefined : JSON.stringify(data) });
+    response = await fetch(path, { method, signal, headers: data === undefined ? headers : { 'Content-Type': 'application/json', ...headers }, body: data === undefined ? body : JSON.stringify(data) });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
     const failure = new Error(method === 'GET' ? 'Cannot reach the library. It may be waking up. Wait a moment, then try again.' : 'Connection lost. This action may have completed. Refresh and check the records before trying again.');
@@ -85,7 +94,7 @@ export async function request(path, method = 'GET', data, signal) {
   }
   if (!response.ok) {
     const problem = await response.json().catch(() => ({}));
-    throw new Error(problem.detail || problem.message || ({ 400: 'Check your entries and try again.', 404: 'This record no longer exists. Refresh the library.', 409: 'This action conflicts with the current records. Check availability and borrowing history.' }[response.status]) || `Library request failed (HTTP ${response.status}).`);
+    throw new Error(problem.detail || problem.message || ({ 400: 'Check your entries and try again.', 401: 'Wrong admin password.', 403: 'Cover uploads are not enabled on this server.', 413: 'This image is too large. Covers must be at most 2 MB.', 415: 'Choose a JPEG, PNG or WebP image.', 404: 'This record no longer exists. Refresh the library.', 409: 'This action conflicts with the current records. Check availability and borrowing history.' }[response.status]) || `Library request failed (HTTP ${response.status}).`);
   }
   if (method !== 'GET' || response.status === 204) return null;
   try { return await response.json(); } catch { throw new Error('The library could not load these records. Please try again.'); }

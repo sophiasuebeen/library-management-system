@@ -17,3 +17,6 @@ services:
         sync: false
       - key: DB_PASSWORD
         sync: false
+      # Required to upload or remove book covers. Without it, cover changes are refused.
+      - key: COVER_ADMIN_PASSWORD
+        sync: false

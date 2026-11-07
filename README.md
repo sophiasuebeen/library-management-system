@@ -15,7 +15,7 @@ Orbit Library is a full-stack library database management application built with
 | Borrowings | Borrow an available book, view current loans, and return a book |
 | Waitlists | Join a book's queue when no copies are available, view the next reader, and remove the next entry |
 | Book edits | Undo the most recent book-details edit while its in-memory history is available |
-| Interface | Start from a home screen with search above an interactive 3D orbit; browse the collection in orbit or index view beside a catalog record. Demo titles use matching cover artwork, and other books get a typeset cover with their title and author |
+| Interface | Start from a home screen with search above an interactive 3D orbit; browse the collection in orbit or index view beside a catalog record. Upload a cover for any book; demo titles otherwise use matching artwork, and other books get a typeset cover with their title and author |
 
 Records referenced by borrowing history cannot be deleted. Returning a book restores one available copy; it does not automatically lend the book to the next person in a waitlist.
 
@@ -87,8 +87,8 @@ Controllers handle HTTP requests and input validation. Services coordinate busin
 
 Requires JDK 25, Node.js 22, and MySQL.
 
-1. Clone the repository and prepare the `library` database with the required tables.
-2. Set `DB_PASSWORD` in your environment. The default database connection is `localhost:3306/library`, with username `root`.
+1. Clone the repository and prepare the `library` database with the required tables, then run `docs/book-covers.sql` once.
+2. Set `DB_PASSWORD` in your environment. The default database connection is `localhost:3306/library`, with username `root`. Set `COVER_ADMIN_PASSWORD` (English letters, numbers and symbols) to allow cover uploads; without it, cover changes are refused.
 3. Start the backend and frontend in separate terminals from the repository root:
 
 ```bash
@@ -117,6 +117,10 @@ Open [localhost:5173](http://localhost:5173). For frontend-only demo mode, use [
 | PATCH | `/books/{id}/copies` | Set available copies |
 | DELETE | `/books/{id}` | Delete an eligible book |
 | POST | `/books/undo` | Undo the last book-details edit |
+| GET | `/books/covers` | List which books have uploaded covers, with each cover's version |
+| GET | `/books/{id}/cover` | Read an uploaded cover image |
+| PUT | `/books/{id}/cover` | Upload or replace a cover: raw JPEG, PNG, or WebP bytes up to 2 MB, with the `X-Admin-Password` header |
+| DELETE | `/books/{id}/cover` | Remove an uploaded cover, with the `X-Admin-Password` header |
 | GET / POST | `/students` | List or register students |
 | PATCH / DELETE | `/students/{id}` | Edit or delete a student |
 | GET / POST | `/borrowings` | List current loans or borrow a book |

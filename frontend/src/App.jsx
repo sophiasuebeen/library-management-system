@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, MagnifyingGlass, Plus, X, ArrowUpRight } from '@phosphor-icons/react';
 import { demoMode, enrich, request } from './data';
 import { Orbit } from './Orbit';
+import { prepareCover } from './coverImage';
 
 const sections = ['Home', 'Collection', 'Students', 'Borrowings', 'Waitlists'];
 const padId = id => String(id).padStart(4, '0');
@@ -30,7 +31,8 @@ function FormDialog({ config, onClose, onComplete }) {
       <h2 id="dialog-title">{config.title}</h2><p className="dialog-description">{config.description}</p>
       <fieldset disabled={busy}>{config.fields?.map(field => <label className="field" key={field.name}>{field.label}
         {field.options ? <select aria-label={field.label} name={field.name} required defaultValue={field.value}><option value="" disabled>Choose {field.label.toLowerCase()}</option>{field.options.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
-          : <input aria-label={field.label} name={field.name} type={field.type || 'text'} required defaultValue={field.value ?? ''} min={field.type === 'number' ? 0 : undefined} max={field.type === 'number' ? 2147483647 : undefined} step={field.type === 'number' ? 1 : undefined} maxLength={255}/>}
+          : field.type === 'file' ? <input aria-label={field.label} name={field.name} type="file" accept={field.accept} required/>
+          : <input aria-label={field.label} name={field.name} type={field.type || 'text'} autoComplete={field.type === 'password' ? 'off' : undefined} required defaultValue={field.value ?? ''} min={field.type === 'number' ? 0 : undefined} max={field.type === 'number' ? 2147483647 : undefined} step={field.type === 'number' ? 1 : undefined} maxLength={255}/>}
       </label>)}</fieldset>
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <button className="primary" type="submit" disabled={busy}>{busy ? 'Saving…' : config.label || 'Save changes'}<ArrowRight size={23}/></button>
@@ -56,12 +58,14 @@ export function App() {
   const [queue, setQueue] = useState({ loading: false, next: null, error: '' });
   const [queueVersion, setQueueVersion] = useState(0);
   const loadVersion = useRef(0);
+  const adminPassword = useRef('');
   async function load() {
     const version = ++loadVersion.current;
     setLoading(true); setLoadError('');
     try {
-      const [books, students, borrowings] = await Promise.all([request('/books'), request('/students'), request('/borrowings')]);
-      if (version === loadVersion.current) setData({ books: books.map(enrich), students, borrowings });
+      // Covers are optional: the library must still load when they cannot be read.
+      const [books, students, borrowings, covers] = await Promise.all([request('/books'), request('/students'), request('/borrowings'), request('/books/covers').catch(() => [])]);
+      if (version === loadVersion.current) setData({ books: books.map(book => enrich(book, Array.isArray(covers) ? covers : [])), students, borrowings });
     } catch (error) { if (version === loadVersion.current) setLoadError(error.message); }
     finally { if (version === loadVersion.current) setLoading(false); }
   }
@@ -95,6 +99,24 @@ export function App() {
   }
   function confirm(title, description, path, method, success) { setForm({ title, description, action: () => request(path, method), label: 'Confirm', success }); }
   function setCopies(book) { setForm({ title: 'Set available copies.', description: 'This replaces the current available count. It does not add to it.', fields: [numberField('copies', 'Available copies', book.availableCopies)], action: values => request(`/books/${book.id}/copies`, 'PATCH', { copies: Number(values.copies) }), success: 'Available copies updated.' }); }
+  const passwordFields = () => demoMode || adminPassword.current ? [] : [{ name: 'password', label: 'Admin password', type: 'password' }];
+  async function coverRequest(book, method, password, body) {
+    const secret = adminPassword.current || password || '';
+    if (!demoMode && !/^[\x21-\x7e]+$/.test(secret)) throw new Error('Wrong admin password.');
+    try {
+      await request(`/books/${book.id}/cover`, method, undefined, undefined, { body, headers: { 'X-Admin-Password': secret } });
+      adminPassword.current = secret;
+    } catch (error) {
+      if (error.message === 'Wrong admin password.') adminPassword.current = '';
+      throw error;
+    }
+  }
+  function uploadCover(book) {
+    setForm({ title: 'Upload a cover.', description: `Choose a cover for “${book.title}”. It is cropped to the shape of a book.`, fields: [{ name: 'cover', label: 'Cover image', type: 'file', accept: 'image/jpeg,image/png,image/webp' }, ...passwordFields()], action: async values => coverRequest(book, 'PUT', values.password, await prepareCover(values.cover)), label: 'Upload cover', success: 'Cover uploaded.' });
+  }
+  function removeCover(book) {
+    setForm({ title: 'Remove this cover?', description: `Remove the uploaded cover from “${book.title}”.`, fields: passwordFields(), action: values => coverRequest(book, 'DELETE', values.password), label: 'Remove cover', success: 'Cover removed.' });
+  }
   function openBook(id) { setSelectedId(id); navigate('Collection'); }
   const totalCopies = data.books.reduce((total, book) => total + book.availableCopies, 0);
   const searchField = <label className="search"><MagnifyingGlass size={24}/><input aria-label="Search collection" type="search" placeholder="Search by title or author" value={query} onChange={e => setQuery(e.target.value)}/></label>;
@@ -120,7 +142,7 @@ export function App() {
             <p>{selected.author}</p>
             <dl className="record-list">{selected.genre ? <><div><dt>Genre</dt><dd>{selected.genre}</dd></div><div><dt>Published</dt><dd>{selected.year}</dd></div><div><dt>Pages</dt><dd>{selected.pages}</dd></div></> : null}<div><dt>Available</dt><dd>{selected.availableCopies} {selected.availableCopies === 1 ? 'copy' : 'copies'}</dd></div><div><dt>Status</dt><dd>{selected.availableCopies > 0 ? 'On shelf' : 'Unavailable'}</dd></div></dl>
             <button className="outline-button wide" onClick={() => selected.availableCopies > 0 ? borrow(selected) : join(selected)}>{selected.availableCopies > 0 ? 'Check out' : 'Join waitlist'}</button>
-            <div className="record-actions"><button onClick={() => editBook(selected)}>Edit</button><button onClick={() => setCopies(selected)}>Set copies</button><button onClick={() => { setQueueBookId(String(selected.id)); navigate('Waitlists'); }}>Waitlist</button><button className="danger" onClick={() => confirm('Delete this book?', `Permanently delete “${selected.title}”? Books with borrowing history cannot be deleted.`, `/books/${selected.id}`, 'DELETE', 'Book deleted.')}>Delete</button></div>
+            <div className="record-actions"><button onClick={() => editBook(selected)}>Edit</button><button onClick={() => setCopies(selected)}>Set copies</button><button onClick={() => uploadCover(selected)}>{selected.hasUploadedCover ? 'Replace cover' : 'Upload cover'}</button>{selected.hasUploadedCover ? <button onClick={() => removeCover(selected)}>Remove cover</button> : null}<button onClick={() => { setQueueBookId(String(selected.id)); navigate('Waitlists'); }}>Waitlist</button><button className="danger" onClick={() => confirm('Delete this book?', `Permanently delete “${selected.title}”? Books with borrowing history cannot be deleted.`, `/books/${selected.id}`, 'DELETE', 'Book deleted.')}>Delete</button></div>
           </section>
         </div>}
         <div className="collection-footer"><button className="text-link" onClick={() => editBook()}><Plus size={18}/> Add a book</button><div><button onClick={() => confirm('Undo last book edit?', 'Restore the previous title and author of the most recently edited book. History clears when the server restarts.', '/books/undo', 'POST', 'Last book edit undone.')}>Undo last edit</button><button onClick={load}>Refresh collection</button></div></div>
